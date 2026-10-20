@@ -1,0 +1,46 @@
+# Every setting of the study. Data: public IMF series (downloaded by `python run.py --fetch`).
+seed: 20240801
+
+paths:
+  raw: data/raw              # IMF downloads, git-ignored (not redistributed)
+  processed: data/processed  # the built panel, git-ignored
+  outputs: outputs
+
+api: https://api.imf.org/external/sdmx/3.0/data/dataflow
+requests:   # name: [agency, dataflow, version, series key]; every country; deposit takers for FSI
+  fsi_roa:   [IMF.STA, FSIC, 13.0.1, "*.S12CFSI.ROA_CFSI_PT+ROA_ANIBT_XDC+ROA_ATA_XDC.Q"]
+  fsi_other: [IMF.STA, FSIC, 13.0.1, "*.S12CFSI.FSI688_CFSI_PT+FSI99_CFSI_PT+FSI99_INTMARG_XDC+FSI99_GINC_XDC+FSI131_AFSI_PT.Q"]
+  gdp:       [IMF.STA, QNEA, 7.0.0, "*.B1GQ.Q.NSA.XDC.Q"]    # kept only to document why WEO growth is used
+  cpi:       [IMF.STA, CPI, 5.0.0, "*.CPI._T.IX.Q"]          # kept to cross-check WEO inflation
+  policy:    [IMF.STA, MFS_IR, 9.0.0, "*.MFS166_RT_PT_A_PT.Q"]
+  usd_rate:  [IMF.STA, ER, 4.0.1, "*.XDC_USD.PA_RT.Q"]
+  weo:       [IMF.RES, WEO_2026_APR_VINTAGE, 1.0.0, "*.NGDP_RPCH+PCPIPCH.A"]
+
+# Bank ratios are taken at Q4: most compilers report income year to date, so only Q4 covers a full calendar
+# year everywhere. Macro variables are calendar-year values.
+years: [2008, 2025]
+min_years: 10          # main sample: emerging and developing economies with this many complete years
+min_years_strict: 15   # robustness sample
+asset_break_logpts: 40 # a quarter-on-quarter move in average total assets beyond this is a reporting break
+high_inflation_pct: 40 # country-years above this annual inflation leave the main sample (a robustness check keeps them)
+# IMF World Economic Outlook, April 2026, Statistical Appendix: the 43 advanced economies. Every other economy
+# counts as emerging or developing. (Bulgaria moved to this list on joining the euro area in January 2026.)
+advanced_economies: [AND, AUS, AUT, BEL, BGR, CAN, CHE, CYP, CZE, DEU, DNK, ESP, EST, FIN, FRA, GBR, GRC, HKG,
+                     HRV, IRL, ISL, ISR, ITA, JPN, KOR, LIE, LTU, LUX, LVA, MAC, MLT, NLD, NOR, NZL, PRI, PRT,
+                     SGP, SMR, SVK, SVN, SWE, TWN, USA]
+
+simulation:            # the check run before any estimate (plan, section 6)
+  reps: 1000
+  reps_quick: 200
+  wild_bootstrap: {reps: 200, reps_quick: 50, B: 199}
+  calibration_draws: 60
+  horizons: [0, 1, 2]  # local projections, years ahead
+  stress:              # the calibrated noise with one feature pushed harder
+    more persistent: {rho: 0.9}
+    more shared shocks: {phi: 0.5}
+    fatter tails: {nu: 3}
+
+reading:               # how results are read (plan, section 9); fixed before any estimate was computed
+  small_effect_sd: 0.25  # "no large effect" when the interval rules out a typical swing in the macro variable
+                         # moving the outcome by more than this many within-country SDs of the outcome
+  wild_bootstrap_B: 9999
